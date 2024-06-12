@@ -1,0 +1,38 @@
+MEDIUMS = [
+        "painting",
+        "drawing",
+        "photograph",
+        "HD photo",
+        "illustration",
+        "portrait",
+        "sketch",
+        "3d render",
+        "digital painting",
+        "concept art",
+        "screenshot",
+        "canvas painting",
+        "watercolor art",
+    ]
+
+SUBJECTS = [
+        "dog",
+        "cat",
+        "car",
+        "building",
+        "house",
+        "tree",
+        "flower",
+        "mountain",
+        "lake",
+        "person",
+        "man",
+        "woman",
+        "toy",
+        "horse",
+        "bird",
+        "soup",
+        "chicken",
+        "fish",
+        "fruit",
+
+    ]
