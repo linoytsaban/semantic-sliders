@@ -116,6 +116,54 @@ class CLIPSlider:
 
 class CLIPSliderXL(CLIPSlider):
 
+    def find_latent_direction(self,
+                              target_word:str,
+                              opposite:str):
+
+        # lets identify a latent direction by taking differences between opposites
+        # target_word = "happy"
+        # opposite = "sad"
+
+
+        with torch.no_grad():
+            positives = []
+            negatives = []
+            positives2 = []
+            negatives2 = []
+            for i in tqdm(range(self.iterations)):
+                medium = random.choice(MEDIUMS)
+                subject = random.choice(SUBJECTS)
+                pos_prompt = f"a {medium} of a {target_word} {subject}"
+                neg_prompt = f"a {medium} of a {opposite} {subject}"
+                pos_toks = self.pipe.tokenizer(pos_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                          max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
+                neg_toks = self.pipe.tokenizer(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                          max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
+                pos = self.pipe.text_encoder(pos_toks).pooler_output
+                neg = self.pipe.text_encoder(neg_toks).pooler_output
+                positives.append(pos)
+                negatives.append(neg)
+
+                pos_toks2 = self.pipe.tokenizer_2(pos_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                             max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
+                neg_toks2 = self.pipe.tokenizer_2(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                             max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
+                pos2 = self.pipe.text_encoder_2(pos_toks2).text_embeds
+                neg2 = self.pipe.text_encoder_2(neg_toks2).text_embeds
+                positives2.append(pos2)
+                negatives2.append(neg2)
+
+        positives = torch.cat(positives, dim=0)
+        negatives = torch.cat(negatives, dim=0)
+        diffs = positives - negatives
+        avg_diff = diffs.mean(0, keepdim=True)
+
+        positives2 = torch.cat(positives2, dim=0)
+        negatives2 = torch.cat(negatives2, dim=0)
+        diffs2 = positives2 - negatives2
+        avg_diff2 = diffs2.mean(0, keepdim=True)
+        return (avg_diff, avg_diff2)
+
     def generate(self,
         prompt = "a photo of a house",
         scale = 2,
@@ -156,20 +204,24 @@ class CLIPSliderXL(CLIPSlider):
                 prompt_embeds = prompt_embeds.hidden_states[-2]
 
                 if only_pooler:
-                    prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff * scale
+                    prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[0] * scale
                 else:
                     normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
-                    weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 768)
-
-                    standard_weights = torch.ones_like(weights)
-
-                    weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
-
-                    # weights = torch.sigmoid((weights-0.5)*7)
-
                     if i == 0:
-                        prompt_embeds = prompt_embeds + (weights * self.avg_diff[None, :].repeat(1, 77, 1) * scale)
+                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 768)
+
+                        standard_weights = torch.ones_like(weights)
+
+                        weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
+                        prompt_embeds = prompt_embeds + (weights * self.avg_diff[0][None, :].repeat(1, 77, 1) * scale)
+                    else:
+                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 1280)
+
+                        standard_weights = torch.ones_like(weights)
+
+                        weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
+                        prompt_embeds = prompt_embeds + (weights * self.avg_diff[1][None, :].repeat(1, 77, 1) * scale)
 
                 bs_embed, seq_len, _ = prompt_embeds.shape
                 prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
