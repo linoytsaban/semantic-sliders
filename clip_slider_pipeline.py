@@ -57,11 +57,11 @@ class CLIPSlider:
 
     def generate(self,
         prompt = "a photo of a house",
-        scale = 2,
+        scale = 2.,
         seed = 15,
         only_pooler = False,
         correlation_weight_factor = 1.0,
-        ** pipeline_kwargs
+        **pipeline_kwargs
         ):
         # if doing full sequence, [-0.3,0.3] work well, higher if correlation weighted is true
         # if pooler token only [-4,4] work well
@@ -171,7 +171,7 @@ class CLIPSliderXL(CLIPSlider):
         seed = 15,
         only_pooler = False,
         correlation_weight_factor = 1.0,
-        ** pipeline_kwargs
+        **pipeline_kwargs
         ):
         # if doing full sequence, [-0.3,0.3] work well, higher if correlation weighted is true
         # if pooler token only [-4,4] work well
