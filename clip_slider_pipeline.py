@@ -12,13 +12,14 @@ class CLIPSlider:
             device: torch.device,
             target_word: str,
             opposite: str,
-            iterations: int =300,
+            iterations: int = 300,
     ):
 
         self.device = device
         self.pipe = sd_pipe.to(self.device)
-        self.avg_diff = self.find_latent_direction(target_word, opposite)
         self.iterations = iterations
+        self.avg_diff = self.find_latent_direction(target_word, opposite)
+
 
     def find_latent_direction(self,
                               target_word:str,
