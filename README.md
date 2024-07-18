@@ -1,3 +1,4 @@
-# Semantic Slider
+# Semantic Sliders
 
-### The code in this repo is build and based on @(ethan)[]'s (clip-embedding)[] code
+## traversing through CLIP image & text spaces 🪐🔭🌠
+✨based, inspired by and build upon [CLIP text directions](https://www.ethansmith2000.com/post/traversing-through-clip-space-pca-and-latent-directions) by [Ethan Smith](https://www.ethansmith2000.com) and [SAE features](https://www.lesswrong.com/posts/Quqekpvx8BGMMcaem/interpreting-and-steering-features-in-images) by [Gytis Daujotas](http://gytis.co)✨ 
