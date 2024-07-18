@@ -175,6 +175,7 @@ class CLIPSliderXL(CLIPSlider):
         ):
         # if doing full sequence, [-0.3,0.3] work well, higher if correlation weighted is true
         # if pooler token only [-4,4] work well
+
         text_encoders = [self.pipe.text_encoder, self.pipe.text_encoder_2]
         tokenizers = [self.pipe.tokenizer, self.pipe.tokenizer_2]
         with torch.no_grad():
