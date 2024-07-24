@@ -12,6 +12,8 @@ class CLIPSlider:
             device: torch.device,
             target_word: str,
             opposite: str,
+            target_word_2nd: str = "",
+            opposite_2nd: str = "",
             iterations: int = 300,
     ):
 
@@ -19,6 +21,10 @@ class CLIPSlider:
         self.pipe = sd_pipe.to(self.device)
         self.iterations = iterations
         self.avg_diff = self.find_latent_direction(target_word, opposite)
+        if target_word_2nd != "" or opposite_2nd != "":
+            self.avg_diff_2nd = self.find_latent_direction(target_word_2nd, opposite_2nd)
+        else:
+            self.avg_diff_2nd = None
 
 
     def find_latent_direction(self,
@@ -59,8 +65,10 @@ class CLIPSlider:
     def generate(self,
         prompt = "a photo of a house",
         scale = 2.,
+        scale_2nd = 0., # scale for the 2nd dim directions when avg_diff_2nd is not None
         seed = 15,
         only_pooler = False,
+        normalize_scales = False, # whether to normalize the scales when avg_diff_2nd is not None
         correlation_weight_factor = 1.0,
         **pipeline_kwargs
         ):
@@ -72,8 +80,14 @@ class CLIPSlider:
                                   max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
         prompt_embeds = self.pipe.text_encoder(toks).last_hidden_state
 
+        if self.avg_diff_2nd and normalize_scales:
+            denominator = abs(scale) + abs(scale_2nd)
+            scale = scale / denominator
+            scale_2nd = scale_2nd / denominator
         if only_pooler:
             prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff * scale
+            if self.avg_diff_2nd:
+                prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd * scale_2nd
         else:
             normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
         sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
@@ -84,8 +98,11 @@ class CLIPSlider:
         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
 
         # weights = torch.sigmoid((weights-0.5)*7)
+        prompt_embeds = prompt_embeds + (
+                    weights * self.avg_diff[None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale)
+        if self.avg_diff_2nd:
+            prompt_embeds += weights * self.avg_diff_2nd[None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale_2nd
 
-        prompt_embeds = prompt_embeds + (weights * self.avg_diff[None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale)
 
         torch.manual_seed(seed)
         image = self.pipe(prompt_embeds=prompt_embeds, **pipeline_kwargs).images
@@ -95,10 +112,13 @@ class CLIPSlider:
     def spectrum(self,
                  prompt="a photo of a house",
                  low_scale=-2,
+                 low_scale_2nd=-2,
                  high_scale=2,
+                 high_scale_2nd=2,
                  steps=5,
                  seed=15,
                  only_pooler=False,
+                 normalize_scales=False,
                  correlation_weight_factor=1.0,
                  **pipeline_kwargs
                  ):
@@ -106,7 +126,8 @@ class CLIPSlider:
         images = []
         for i in range(steps):
             scale = low_scale + (high_scale - low_scale) * i / (steps - 1)
-            image = self.generate(prompt, scale, seed, only_pooler, correlation_weight_factor, **pipeline_kwargs)
+            scale_2nd = low_scale_2nd + (high_scale_2nd - low_scale_2nd) * i / (steps - 1)
+            image = self.generate(prompt, scale, scale_2nd, seed, only_pooler, normalize_scales, correlation_weight_factor, **pipeline_kwargs)
             images.append(image[0])
 
         canvas = Image.new('RGB', (640 * steps, 640))
@@ -169,8 +190,10 @@ class CLIPSliderXL(CLIPSlider):
     def generate(self,
         prompt = "a photo of a house",
         scale = 2,
+        scale_2nd = 2,
         seed = 15,
         only_pooler = False,
+        normalize_scales = False,
         correlation_weight_factor = 1.0,
         **pipeline_kwargs
         ):
@@ -206,11 +229,18 @@ class CLIPSliderXL(CLIPSlider):
                 pooled_prompt_embeds = prompt_embeds[0]
                 prompt_embeds = prompt_embeds.hidden_states[-2]
 
+                if self.avg_diff_2nd and normalize_scales:
+                    denominator = abs(scale) + abs(scale_2nd)
+                    scale = scale / denominator
+                    scale_2nd = scale_2nd / denominator
                 if only_pooler:
                     prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[0] * scale
+                    if self.avg_diff_2nd:
+                        prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[0] * scale_2nd
                 else:
                     normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
+
                     if i == 0:
                         weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 768)
 
@@ -218,6 +248,8 @@ class CLIPSliderXL(CLIPSlider):
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         prompt_embeds = prompt_embeds + (weights * self.avg_diff[0][None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale)
+                        if self.avg_diff_2nd:
+                            prompt_embeds += (weights * self.avg_diff_2nd[0][None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale_2nd)
                     else:
                         weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 1280)
 
@@ -225,6 +257,8 @@ class CLIPSliderXL(CLIPSlider):
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         prompt_embeds = prompt_embeds + (weights * self.avg_diff[1][None, :].repeat(1, self.pipe.tokenizer_2.model_max_length, 1) * scale)
+                        if self.avg_diff_2nd:
+                            prompt_embeds += (weights * self.avg_diff_2nd[1][None, :].repeat(1, self.pipe.tokenizer_2.model_max_length, 1) * scale_2nd)
 
                 bs_embed, seq_len, _ = prompt_embeds.shape
                 prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
