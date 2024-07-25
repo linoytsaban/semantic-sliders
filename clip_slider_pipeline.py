@@ -105,9 +105,9 @@ class CLIPSlider:
 
 
         torch.manual_seed(seed)
-        image = self.pipe(prompt_embeds=prompt_embeds, **pipeline_kwargs).images[0]
+        images = self.pipe(prompt_embeds=prompt_embeds, **pipeline_kwargs).images
 
-        return image
+        return images
 
     def spectrum(self,
                  prompt="a photo of a house",
@@ -268,10 +268,10 @@ class CLIPSliderXL(CLIPSlider):
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             torch.manual_seed(seed)
-            image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
-                         **pipeline_kwargs).images[0]
+            images = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
+                         **pipeline_kwargs).images
 
-        return image
+        return images
 
 
 class CLIPSlider3(CLIPSlider):
@@ -415,7 +415,7 @@ class CLIPSlider3(CLIPSlider):
 
 
             torch.manual_seed(seed)
-            image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=clip_pooled_prompt_embeds,
-                         **pipeline_kwargs).images[0]
+            images = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=clip_pooled_prompt_embeds,
+                         **pipeline_kwargs).images
 
-        return image
+        return images
