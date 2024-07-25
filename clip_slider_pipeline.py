@@ -105,7 +105,7 @@ class CLIPSlider:
 
 
         torch.manual_seed(seed)
-        image = self.pipe(prompt_embeds=prompt_embeds, **pipeline_kwargs).images
+        image = self.pipe(prompt_embeds=prompt_embeds, **pipeline_kwargs).images[0]
 
         return image
 
@@ -128,7 +128,7 @@ class CLIPSlider:
             scale = low_scale + (high_scale - low_scale) * i / (steps - 1)
             scale_2nd = low_scale_2nd + (high_scale_2nd - low_scale_2nd) * i / (steps - 1)
             image = self.generate(prompt, scale, scale_2nd, seed, only_pooler, normalize_scales, correlation_weight_factor, **pipeline_kwargs)
-            images.append(image[0])
+            images.append(image)
 
         canvas = Image.new('RGB', (640 * steps, 640))
         for i, im in enumerate(images):
@@ -269,7 +269,7 @@ class CLIPSliderXL(CLIPSlider):
 
             torch.manual_seed(seed)
             image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
-                         **pipeline_kwargs).images
+                         **pipeline_kwargs).images[0]
 
         return image
 
@@ -416,6 +416,6 @@ class CLIPSlider3(CLIPSlider):
 
             torch.manual_seed(seed)
             image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=clip_pooled_prompt_embeds,
-                         **pipeline_kwargs).images
+                         **pipeline_kwargs).images[0]
 
         return image
