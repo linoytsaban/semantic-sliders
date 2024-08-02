@@ -890,9 +890,10 @@ class LEditsPPPipelineStableDiffusionXL(
             callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
             callback_on_step_end_tensor_inputs: List[str] = ["latents"],
             avg_diff=None,
-            avg_diff_2=None,
+            avg_diff_2nd=None,
             correlation_weight_factor=0.7,
             scale=2,
+            scale_2nd=2,
             **kwargs,
     ):
         r"""
@@ -1096,9 +1097,10 @@ class LEditsPPPipelineStableDiffusionXL(
             editing_prompt_embeds=editing_prompt_embeddings,
             editing_pooled_prompt_embeds=editing_pooled_prompt_embeds,
             avg_diff=avg_diff,
-            avg_diff_2=avg_diff_2,
+            avg_diff_2nd=avg_diff_2nd,
             correlation_weight_factor=correlation_weight_factor,
             scale=scale,
+            scale_2nd=scale_2nd,
         )
 
         # 4. Prepare timesteps
