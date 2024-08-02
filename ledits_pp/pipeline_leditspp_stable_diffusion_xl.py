@@ -539,7 +539,6 @@ class LEditsPPPipelineStableDiffusionXL(
 
                 if avg_diff is not None and avg_diff_2 is not None:
                     # scale=3
-                    print("SHALOM neg")
                     normed_prompt_embeds = negative_prompt_embeds / negative_prompt_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
                     if j == 0:
@@ -603,10 +602,9 @@ class LEditsPPPipelineStableDiffusionXL(
                     # "2" because SDXL always indexes from the penultimate layer.
                     edit_concepts_embeds = edit_concepts_embeds.hidden_states[-(clip_skip + 2)]
 
-                print("SHALOM???")
+
                 if avg_diff is not None and avg_diff_2 is not None:
-                    # scale=3
-                    print("SHALOM")
+
                     normed_prompt_embeds = edit_concepts_embeds / edit_concepts_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
                     if i == 0:
