@@ -188,15 +188,17 @@ class CLIPSliderXL(CLIPSlider):
         return (avg_diff, avg_diff2)
 
     def generate(self,
-        prompt = "a photo of a house",
-        scale = 2,
-        scale_2nd = 2,
-        seed = 15,
-        only_pooler = False,
-        normalize_scales = False,
-        correlation_weight_factor = 1.0,
-        **pipeline_kwargs
-        ):
+                 prompt="a photo of a house",
+                 scale=2,
+                 scale_2nd=2,
+                 seed=15,
+                 only_pooler=False,
+                 normalize_scales=False,
+                 correlation_weight_factor=1.0,
+                 init_latents=None,  # inversion
+                 zs=None,  # inversion
+                 **pipeline_kwargs
+                 ):
         # if doing full sequence, [-0.3,0.3] work well, higher if correlation weighted is true
         # if pooler token only [-4,4] work well
 
@@ -268,10 +270,17 @@ class CLIPSliderXL(CLIPSlider):
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             torch.manual_seed(seed)
-            images = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
-                         **pipeline_kwargs).images
+            if init_latents is not None:  # inversion
+                image = self.pipe(editing_prompt=prompt,
+                                  avg_diff=self.avg_diff,
+                                  avg_diff_2=self.avg_diff2, scale=scale,
+                                  **pipeline_kwargs).images[0]
+            else:
+                image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
+                                  **pipeline_kwargs).images[0]
 
-        return images
+        return image
+
 
 
 class CLIPSlider3(CLIPSlider):
