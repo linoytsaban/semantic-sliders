@@ -338,8 +338,8 @@ class CLIPSliderXL_inv(CLIPSlider):
         with torch.no_grad():
             torch.manual_seed(seed)
             images = self.pipe(editing_prompt=prompt,
-                               avg_diff=self.avg_diff[0], avg_diff_2=self.avg_diff[1],
-                               scale=scale,
+                               avg_diff=self.avg_diff, avg_diff_2nd=self.avg_diff_2nd,
+                               scale=scale, scale_2nd=scale_2nd,
                                **pipeline_kwargs).images
 
         return images
