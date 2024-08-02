@@ -548,11 +548,11 @@ class LEditsPPPipelineStableDiffusionXL(
                         standard_weights = torch.ones_like(weights)
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
-                        edit_concepts_embeds = negative_prompt_embeds + (
+                        negative_prompt_embeds = negative_prompt_embeds + (
                                     weights * avg_diff[0][None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
 
                         if avg_diff_2nd is not None:
-                            edit_concepts_embeds += (weights * avg_diff_2nd[0][None, :].repeat(1,
+                            negative_prompt_embeds += (weights * avg_diff_2nd[0][None, :].repeat(1,
                                                                                             self.pipe.tokenizer.model_max_length,
                                                                                             1) * scale_2nd)
                     else:
@@ -561,11 +561,11 @@ class LEditsPPPipelineStableDiffusionXL(
                         standard_weights = torch.ones_like(weights)
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
-                        edit_concepts_embeds = negative_prompt_embeds + (
+                        negative_prompt_embeds = negative_prompt_embeds + (
                                     weights * avg_diff[1][None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
 
                         if avg_diff_2nd is not None:
-                            edit_concepts_embeds += (weights * avg_diff_2nd[1][None, :].repeat(1,
+                            negative_prompt_embeds += (weights * avg_diff_2nd[1][None, :].repeat(1,
                                                                                         self.pipe.tokenizer_2.model_max_length,
                                                                                         1) * scale_2nd)
 
@@ -614,7 +614,7 @@ class LEditsPPPipelineStableDiffusionXL(
                     edit_concepts_embeds = edit_concepts_embeds.hidden_states[-(clip_skip + 2)]
 
 
-                if avg_diff is not None and avg_diff_2 is not None:
+                if avg_diff is not None:
 
                     normed_prompt_embeds = edit_concepts_embeds / edit_concepts_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
@@ -625,7 +625,12 @@ class LEditsPPPipelineStableDiffusionXL(
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         edit_concepts_embeds = edit_concepts_embeds + (
-                                    weights * avg_diff[None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
+                                    weights * avg_diff[0][None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
+
+                        if avg_diff_2nd is not None:
+                            edit_concepts_embeds += (weights * avg_diff_2nd[0][None, :].repeat(1,
+                                                                                            self.pipe.tokenizer.model_max_length,
+                                                                                            1) * scale_2nd)
                     else:
                         weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 1280)
 
@@ -633,7 +638,11 @@ class LEditsPPPipelineStableDiffusionXL(
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         edit_concepts_embeds = edit_concepts_embeds + (
-                                    weights * avg_diff_2[None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
+                                    weights * avg_diff[1][None, :].repeat(1, tokenizer.model_max_length, 1) * scale)
+                        if avg_diff_2nd is not None:
+                            edit_concepts_embeds += (weights * avg_diff_2nd[1][None, :].repeat(1,
+                                                                                            self.pipe.tokenizer_2.model_max_length,
+                                                                                            1) * scale_2nd)
 
                 edit_prompt_embeds_list.append(edit_concepts_embeds)
                 i += 1
