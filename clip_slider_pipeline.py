@@ -188,17 +188,15 @@ class CLIPSliderXL(CLIPSlider):
         return (avg_diff, avg_diff2)
 
     def generate(self,
-                 prompt="a photo of a house",
-                 scale=2,
-                 scale_2nd=2,
-                 seed=15,
-                 only_pooler=False,
-                 normalize_scales=False,
-                 correlation_weight_factor=1.0,
-                 init_latents=None,  # inversion
-                 zs=None,  # inversion
-                 **pipeline_kwargs
-                 ):
+        prompt = "a photo of a house",
+        scale = 2,
+        scale_2nd = 2,
+        seed = 15,
+        only_pooler = False,
+        normalize_scales = False,
+        correlation_weight_factor = 1.0,
+        **pipeline_kwargs
+        ):
         # if doing full sequence, [-0.3,0.3] work well, higher if correlation weighted is true
         # if pooler token only [-4,4] work well
 
@@ -270,17 +268,81 @@ class CLIPSliderXL(CLIPSlider):
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             torch.manual_seed(seed)
-            if init_latents is not None:  # inversion
-                image = self.pipe(editing_prompt=prompt,
-                                  avg_diff=self.avg_diff,
-                                  avg_diff_2=self.avg_diff2, scale=scale,
-                                  **pipeline_kwargs).images[0]
-            else:
-                image = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
-                                  **pipeline_kwargs).images[0]
+            images = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
+                         **pipeline_kwargs).images
 
-        return image
+        return images
 
+class CLIPSliderXL_inv(CLIPSlider):
+
+    def find_latent_direction(self,
+                              target_word:str,
+                              opposite:str):
+
+        # lets identify a latent direction by taking differences between opposites
+        # target_word = "happy"
+        # opposite = "sad"
+
+
+        with torch.no_grad():
+            positives = []
+            negatives = []
+            positives2 = []
+            negatives2 = []
+            for i in tqdm(range(self.iterations)):
+                medium = random.choice(MEDIUMS)
+                subject = random.choice(SUBJECTS)
+                pos_prompt = f"a {medium} of a {target_word} {subject}"
+                neg_prompt = f"a {medium} of a {opposite} {subject}"
+
+                pos_toks = self.pipe.tokenizer(pos_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                          max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
+                neg_toks = self.pipe.tokenizer(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                          max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
+                pos = self.pipe.text_encoder(pos_toks).pooler_output
+                neg = self.pipe.text_encoder(neg_toks).pooler_output
+                positives.append(pos)
+                negatives.append(neg)
+
+                pos_toks2 = self.pipe.tokenizer_2(pos_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                             max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
+                neg_toks2 = self.pipe.tokenizer_2(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
+                                             max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
+                pos2 = self.pipe.text_encoder_2(pos_toks2).text_embeds
+                neg2 = self.pipe.text_encoder_2(neg_toks2).text_embeds
+                positives2.append(pos2)
+                negatives2.append(neg2)
+
+        positives = torch.cat(positives, dim=0)
+        negatives = torch.cat(negatives, dim=0)
+        diffs = positives - negatives
+        avg_diff = diffs.mean(0, keepdim=True)
+
+        positives2 = torch.cat(positives2, dim=0)
+        negatives2 = torch.cat(negatives2, dim=0)
+        diffs2 = positives2 - negatives2
+        avg_diff2 = diffs2.mean(0, keepdim=True)
+        return (avg_diff, avg_diff2)
+
+    def generate(self,
+        prompt = "a photo of a house",
+        scale = 2,
+        scale_2nd = 2,
+        seed = 15,
+        only_pooler = False,
+        normalize_scales = False,
+        correlation_weight_factor = 1.0,
+        **pipeline_kwargs
+        ):
+
+        with torch.no_grad():
+            torch.manual_seed(seed)
+            images = self.pipe(editing_prompt=prompt,
+                               avg_diff=self.avg_diff[0], avg_diff_2=self.avg_diff[1],
+                               scale=scale,
+                               **pipeline_kwargs).images
+
+        return images
 
 
 class CLIPSlider3(CLIPSlider):
