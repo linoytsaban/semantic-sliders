@@ -80,13 +80,13 @@ class CLIPSlider:
                                   max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
         prompt_embeds = self.pipe.text_encoder(toks).last_hidden_state
 
-        if self.avg_diff_2nd and normalize_scales:
+        if self.avg_diff_2nd is not None and normalize_scales:
             denominator = abs(scale) + abs(scale_2nd)
             scale = scale / denominator
             scale_2nd = scale_2nd / denominator
         if only_pooler:
             prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff * scale
-            if self.avg_diff_2nd:
+            if self.avg_diff_2nd is not None:
                 prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd * scale_2nd
         else:
             normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
@@ -100,7 +100,7 @@ class CLIPSlider:
         # weights = torch.sigmoid((weights-0.5)*7)
         prompt_embeds = prompt_embeds + (
                     weights * self.avg_diff[None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale)
-        if self.avg_diff_2nd:
+        if self.avg_diff_2nd is not None:
             prompt_embeds += weights * self.avg_diff_2nd[None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale_2nd
 
 
@@ -229,13 +229,13 @@ class CLIPSliderXL(CLIPSlider):
                 pooled_prompt_embeds = prompt_embeds[0]
                 prompt_embeds = prompt_embeds.hidden_states[-2]
 
-                if self.avg_diff_2nd and normalize_scales:
+                if self.avg_diff_2nd is not None and normalize_scales:
                     denominator = abs(scale) + abs(scale_2nd)
                     scale = scale / denominator
                     scale_2nd = scale_2nd / denominator
                 if only_pooler:
                     prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[0] * scale
-                    if self.avg_diff_2nd:
+                    if self.avg_diff_2nd is not None:
                         prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[0] * scale_2nd
                 else:
                     normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
@@ -248,7 +248,7 @@ class CLIPSliderXL(CLIPSlider):
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         prompt_embeds = prompt_embeds + (weights * self.avg_diff[0][None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale)
-                        if self.avg_diff_2nd:
+                        if self.avg_diff_2nd is not None:
                             prompt_embeds += (weights * self.avg_diff_2nd[0][None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale_2nd)
                     else:
                         weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 1280)
@@ -257,7 +257,7 @@ class CLIPSliderXL(CLIPSlider):
 
                         weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                         prompt_embeds = prompt_embeds + (weights * self.avg_diff[1][None, :].repeat(1, self.pipe.tokenizer_2.model_max_length, 1) * scale)
-                        if self.avg_diff_2nd:
+                        if self.avg_diff_2nd is not None:
                             prompt_embeds += (weights * self.avg_diff_2nd[1][None, :].repeat(1, self.pipe.tokenizer_2.model_max_length, 1) * scale_2nd)
 
                 bs_embed, seq_len, _ = prompt_embeds.shape
@@ -433,13 +433,13 @@ class CLIPSliderFlux(CLIPSlider):
             prompt_embeds = self.pipe.text_encoder_2(toks.to(self.device), output_hidden_states=False)[0]
             dtype = self.pipe.text_encoder_2.dtype
             prompt_embeds = prompt_embeds.to(dtype=dtype, device=self.device)
-            if self.avg_diff_2nd and normalize_scales:
+            if self.avg_diff_2nd is not None and normalize_scales:
                 denominator = abs(scale) + abs(scale_2nd)
                 scale = scale / denominator
                 scale_2nd = scale_2nd / denominator
 
             pooled_prompt_embeds = pooled_prompt_embeds + self.avg_diff * scale
-            if self.avg_diff_2nd:
+            if self.avg_diff_2nd is not None:
                 pooled_prompt_embeds += self.avg_diff_2nd * scale_2nd
 
             torch.manual_seed(seed)
@@ -564,13 +564,13 @@ class T5SliderFlux(CLIPSlider):
             prompt_embeds = self.pipe.text_encoder_2(toks.to(self.device), output_hidden_states=False)[0]
             dtype = self.pipe.text_encoder_2.dtype
             prompt_embeds = prompt_embeds.to(dtype=dtype, device=self.device)
-            if self.avg_diff_2nd and normalize_scales:
+            if self.avg_diff_2nd is not None and normalize_scales:
                 denominator = abs(scale) + abs(scale_2nd)
                 scale = scale / denominator
                 scale_2nd = scale_2nd / denominator
             if only_pooler:
                 prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff * scale
-                if self.avg_diff_2nd:
+                if self.avg_diff_2nd is not None:
                     prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd * scale_2nd
             else:
                 normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
@@ -583,7 +583,7 @@ class T5SliderFlux(CLIPSlider):
                 weights = standard_weights + (weights - standard_weights) * correlation_weight_factor
                 prompt_embeds = prompt_embeds + (
                             weights * self.avg_diff * scale)
-                if self.avg_diff_2nd:
+                if self.avg_diff_2nd is not None:
                     prompt_embeds += (
                                 weights * self.avg_diff_2nd * scale_2nd)
 
