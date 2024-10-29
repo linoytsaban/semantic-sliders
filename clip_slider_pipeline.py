@@ -376,9 +376,11 @@ class CLIPSliderSD3(CLIPSlider):
                     scale = scale / denominator
                     scale_2nd = scale_2nd / denominator
                 if only_pooler:
-                    prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[i] * scale
+                    pooled_prompt_embeds = pooled_prompt_embeds + self.avg_diff[i] * scale
+                    #prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[i] * scale
                     if self.avg_diff_2nd is not None:
-                        prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[i] * scale_2nd
+                        pooled_prompt_embeds = pooled_prompt_embeds + self.avg_diff_2nd[i] * scale
+                        #prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[i] * scale_2nd
                 else:
                     normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
