@@ -299,8 +299,8 @@ class CLIPSliderSD3(CLIPSlider):
                                           max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
                 neg_toks = self.pipe.tokenizer(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
                                           max_length=self.pipe.tokenizer.model_max_length).input_ids.cuda()
-                pos = self.pipe.text_encoder(pos_toks).pooler_output
-                neg = self.pipe.text_encoder(neg_toks).pooler_output
+                pos = self.pipe.text_encoder(pos_toks, output_hidden_states=True)[0]
+                neg = self.pipe.text_encoder(neg_toks, output_hidden_states=True)[0]
                 positives.append(pos)
                 negatives.append(neg)
 
@@ -308,8 +308,8 @@ class CLIPSliderSD3(CLIPSlider):
                                              max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
                 neg_toks2 = self.pipe.tokenizer_2(neg_prompt, return_tensors="pt", padding="max_length", truncation=True,
                                              max_length=self.pipe.tokenizer_2.model_max_length).input_ids.cuda()
-                pos2 = self.pipe.text_encoder_2(pos_toks2).pooler_output
-                neg2 = self.pipe.text_encoder_2(neg_toks2).pooler_output
+                pos2 = self.pipe.text_encoder_2(pos_toks2, output_hidden_states=True)[0]
+                neg2 = self.pipe.text_encoder_2(neg_toks2, output_hidden_states=True)[0]
                 positives2.append(pos2)
                 negatives2.append(neg2)
 
@@ -348,6 +348,7 @@ class CLIPSliderSD3(CLIPSlider):
             # prompt_embeds = pipe.text_encoder(toks).last_hidden_state
 
             prompt_embeds_list = []
+            pooled_prompt_embeds_list = []
 
             for i, text_encoder in enumerate(text_encoders):
 
@@ -375,15 +376,15 @@ class CLIPSliderSD3(CLIPSlider):
                     scale = scale / denominator
                     scale_2nd = scale_2nd / denominator
                 if only_pooler:
-                    prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[0] * scale
+                    prompt_embeds[:, toks.argmax()] = prompt_embeds[:, toks.argmax()] + self.avg_diff[i] * scale
                     if self.avg_diff_2nd is not None:
-                        prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[0] * scale_2nd
+                        prompt_embeds[:, toks.argmax()] += self.avg_diff_2nd[i] * scale_2nd
                 else:
                     normed_prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
                     sims = normed_prompt_embeds[0] @ normed_prompt_embeds[0].T
 
                     if i == 0:
-                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 768)
+                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, prompt_embeds.shape[2])
 
                         standard_weights = torch.ones_like(weights)
 
@@ -392,7 +393,7 @@ class CLIPSliderSD3(CLIPSlider):
                         if self.avg_diff_2nd is not None:
                             prompt_embeds += (weights * self.avg_diff_2nd[0][None, :].repeat(1, self.pipe.tokenizer.model_max_length, 1) * scale_2nd)
                     else:
-                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, 1280)
+                        weights = sims[toks.argmax(), :][None, :, None].repeat(1, 1, prompt_embeds.shape[2])
 
                         standard_weights = torch.ones_like(weights)
 
@@ -404,9 +405,15 @@ class CLIPSliderSD3(CLIPSlider):
                 bs_embed, seq_len, _ = prompt_embeds.shape
                 prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
                 prompt_embeds_list.append(prompt_embeds)
+                pooled_prompt_embeds_list.append(pooled_prompt_embeds)
 
-            prompt_embeds = torch.cat(prompt_embeds_list+[t5_prompt_embed], dim=-2)
-            pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
+            pooled_prompt_embeds = torch.cat(pooled_prompt_embeds_list, dim=-1)
+            prompt_embeds = torch.cat(prompt_embeds_list, dim=-1)
+            clip_prompt_embeds = torch.nn.functional.pad(
+                prompt_embeds, (0, t5_prompt_embed.shape[-1] - prompt_embeds.shape[-1])
+            )
+            prompt_embeds = torch.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
+
 
             torch.manual_seed(seed)
             images = self.pipe(prompt_embeds=prompt_embeds, pooled_prompt_embeds=pooled_prompt_embeds,
