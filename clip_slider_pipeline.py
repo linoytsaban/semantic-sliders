@@ -128,7 +128,7 @@ class CLIPSlider:
             scale = low_scale + (high_scale - low_scale) * i / (steps - 1)
             scale_2nd = low_scale_2nd + (high_scale_2nd - low_scale_2nd) * i / (steps - 1)
             image = self.generate(prompt, scale, scale_2nd, seed, only_pooler, normalize_scales, correlation_weight_factor, **pipeline_kwargs)
-            images.append(image[0])
+            images.append(image[0].resize((512,512)))
 
         canvas = Image.new('RGB', (640 * steps, 640))
         for i, im in enumerate(images):
